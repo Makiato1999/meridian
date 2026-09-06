@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f5f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Meridian">
+  <meta name="description" content="Meridian 移动端 PWA 交互原型">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/meridian-app-icon.svg" type="image/svg+xml">
+  <title>Meridian PWA Demo</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --canvas: #e7ebe7;
+      --surface: #f3f5f2;
+      --surface-2: #e9ede9;
+      --surface-3: #dde4df;
+      --ink: #17201d;
+      --muted: #65716d;
+      --faint: #8c9692;
+      --line: #d6dcd7;
+      --accent: #35685d;
+      --accent-strong: #28574d;
+      --accent-soft: #dce9e4;
+      --accent-ink: #163f37;
+      --danger: #9b4545;
+      --shadow: 0 28px 80px rgba(36, 55, 49, .18);
+      --radius: 18px;
+      --nav-height: 76px;
+      --ease: cubic-bezier(.16, 1, .3, 1);
+    }
+
+    [data-theme="dark"] {
+      --canvas: #0b100f;
+      --surface: #121816;
+      --surface-2: #19211e;
+      --surface-3: #232d29;
+      --ink: #edf2ef;
+      --muted: #a2ada8;
+      --faint: #7f8a86;
+      --line: #2a3531;
+      --accent: #78aa9d;
+      --accent-strong: #97c4b8;
+      --accent-soft: #213c35;
+      --accent-ink: #d6eee7;
+      --danger: #d77878;
+      --shadow: 0 28px 80px rgba(0, 0, 0, .42);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--canvas); }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    button, textarea { font: inherit; }
+
+    button {
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible, textarea:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 46%, transparent);
+      outline-offset: 3px;
+    }
+
+    .prototype-stage {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) 430px;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(42px, 8vw, 118px);
+      padding: 34px;
+    }
+
+    .stage-note { max-width: 340px; }
+
+    .stage-mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 46px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .stage-mark::before {
+      content: "";
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--ink);
+      border-radius: 50%;
+      background: linear-gradient(90deg, transparent 47%, var(--accent) 48% 52%, transparent 53%);
+    }
+
+    .stage-note h1 {
+      max-width: 330px;
+      margin: 0 0 18px;
+      font-size: clamp(38px, 4.6vw, 62px);
+      line-height: .98;
+      letter-spacing: -.065em;
+      font-weight: 650;
+    }
+
+    .stage-note p {
+      max-width: 32ch;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .stage-index {
+      margin-top: 52px;
+      padding: 0;
+      list-style: none;
+      color: var(--faint);
+      font-size: 13px;
+      line-height: 2;
+    }
+
+    .device {
+      position: relative;
+      width: 430px;
+      height: min(900px, calc(100dvh - 68px));
+      min-height: 700px;
+      overflow: hidden;
+      border: 8px solid #27302d;
+      border-radius: 48px;
+      background: var(--surface);
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255,255,255,.18);
+    }
+
+    .device::before {
+      content: "";
+      position: absolute;
+      z-index: 20;
+      top: 8px;
+      left: 50%;
+      width: 94px;
+      height: 25px;
+      transform: translateX(-50%);
+      border-radius: 99px;
+      background: #27302d;
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative;
+      min-height: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .app-header {
+      position: absolute;
+      z-index: 4;
+      inset: 0 0 auto;
+      height: 76px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      padding: 0 22px 13px;
+      background: color-mix(in srgb, var(--surface) 84%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+      backdrop-filter: blur(18px) saturate(125%);
+      -webkit-backdrop-filter: blur(18px) saturate(125%);
+    }
+
+    .brand {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 720;
+      letter-spacing: -.035em;
+    }
+
+    .header-date {
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .view {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      padding: 101px 20px calc(var(--nav-height) + 30px + env(safe-area-inset-bottom));
+      scrollbar-width: none;
+    }
+
+    .view::-webkit-scrollbar { display: none; }
+
+    .view.active {
+      display: block;
+      animation: view-in .32s var(--ease) both;
+    }
+
+    @keyframes view-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .kicker {
+      margin: 0 0 7px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 720;
+      letter-spacing: .02em;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.08;
+      letter-spacing: -.05em;
+      font-weight: 650;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+      letter-spacing: -.035em;
+      font-weight: 650;
+    }
+
+    .lead {
+      margin: 12px 0 0;
+      max-width: 33ch;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .record-zone {
+      position: relative;
+      min-height: 224px;
+      display: grid;
+      place-items: center;
+      margin: 29px 0 28px;
+      overflow: hidden;
+      border-radius: var(--radius);
+      background:
+        radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--accent-soft) 90%, transparent), transparent 48%),
+        var(--surface-2);
+    }
+
+    .record-zone::before, .record-zone::after {
+      content: "";
+      position: absolute;
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+      border-radius: 50%;
+    }
+
+    .record-zone::before { width: 170px; height: 170px; }
+    .record-zone::after { width: 124px; height: 124px; }
+
+    .record-action {
+      position: relative;
+      z-index: 1;
+      width: 88px;
+      height: 88px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: var(--accent-strong);
+      color: #f4faf7;
+      box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 28%, transparent);
+      cursor: pointer;
+      transition: transform .24s var(--ease), box-shadow .24s var(--ease);
+    }
+
+    .record-action:hover { transform: translateY(-2px); }
+    .record-action:active { transform: scale(.96); }
+
+    .mic-shape {
+      position: relative;
+      width: 17px;
+      height: 28px;
+      border: 2px solid currentColor;
+      border-radius: 12px;
+    }
+
+    .mic-shape::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -9px;
+      width: 26px;
+      height: 17px;
+      transform: translateX(-50%);
+      border: 2px solid currentColor;
+      border-top: 0;
+      border-radius: 0 0 14px 14px;
+    }
+
+    .mic-shape::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -14px;
+      width: 2px;
+      height: 7px;
+      transform: translateX(-50%);
+      background: currentColor;
+      box-shadow: -5px 6px 0 -1px currentColor, 5px 6px 0 -1px currentColor;
+    }
+
+    .record-copy {
+      position: absolute;
+      z-index: 1;
+      bottom: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .text-entry-button {
+      position: absolute;
+      z-index: 1;
+      top: 14px;
+      right: 14px;
+      min-height: 38px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--surface) 80%, transparent);
+      color: var(--muted);
+      cursor: pointer;
+      transition: transform .2s var(--ease), background .2s;
+    }
+
+    .text-entry-button:active { transform: scale(.97); }
+
+    .section-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 0 10px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .subtle-button {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .entry-list { display: grid; gap: 9px; }
+
+    .entry {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr);
+      gap: 12px;
+      padding: 15px 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: none;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .entry:active { transform: translateY(1px); }
+
+    .entry-time {
+      padding-top: 2px;
+      color: var(--faint);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .entry-title {
+      margin-bottom: 6px;
+      font-size: 15px;
+      line-height: 1.45;
+      font-weight: 620;
+      letter-spacing: -.015em;
+    }
+
+    .entry-body {
+      display: -webkit-box;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .entry-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 11px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      padding: 0 9px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .tag.accent { background: var(--accent-soft); color: var(--accent-ink); }
+
+    .processing-entry { opacity: .76; }
+    .processing-entry .entry-title, .processing-entry .entry-body {
+      min-height: 12px;
+      border-radius: 7px;
+      background: var(--surface-3);
+      color: transparent;
+    }
+    .processing-entry .entry-body { width: 82%; min-height: 28px; }
+
+    .view-header { margin-bottom: 26px; }
+
+    .month-strip {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin: 21px 0 30px;
+    }
+
+    .date-cell {
+      min-width: 0;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      gap: 1px;
+      padding: 5px 0;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .date-cell span:first-child { font-size: 10px; color: var(--faint); }
+    .date-cell span:last-child { font-size: 14px; font-weight: 620; }
+    .date-cell.has-data { background: var(--surface-2); color: var(--ink); }
+    .date-cell.selected { background: var(--accent-strong); color: #f4faf7; }
+    .date-cell.selected span:first-child { color: #d9e8e3; }
+
+    .timeline {
+      position: relative;
+      padding-left: 18px;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 3px;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding: 0 0 28px 16px;
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      top: 7px;
+      left: -19px;
+      width: 9px;
+      height: 9px;
+      border: 2px solid var(--surface);
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .timeline-time { margin-bottom: 5px; color: var(--faint); font-size: 11px; }
+    .timeline-title { margin-bottom: 6px; font-size: 15px; font-weight: 650; }
+    .timeline-copy { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+    .empty-state {
+      min-height: 300px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 10px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-ring {
+      width: 66px;
+      height: 66px;
+      margin-bottom: 10px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-soft) 0 6px, transparent 7px);
+    }
+
+    .empty-state strong { color: var(--ink); font-size: 17px; }
+    .empty-state p { max-width: 26ch; margin: 0; font-size: 13px; line-height: 1.6; }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin: 20px 0 24px;
+      padding: 4px;
+      border-radius: 14px;
+      background: var(--surface-2);
+    }
+
+    .segment {
+      min-height: 36px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .segment.active {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 7%, transparent);
+    }
+
+    .primary-button {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 14px;
+      background: var(--accent-strong);
+      color: #f4faf7;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .2s var(--ease), opacity .2s;
+    }
+
+    .primary-button:active { transform: scale(.98); }
+    .primary-button:disabled { opacity: .55; cursor: default; }
+
+    .insight-feature {
+      position: relative;
+      margin-top: 26px;
+      padding: 22px;
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+
+    .insight-feature::after {
+      content: "";
+      position: absolute;
+      right: -42px;
+      bottom: -55px;
+      width: 142px;
+      height: 142px;
+      border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+      border-radius: 50%;
+      box-shadow: 0 0 0 22px color-mix(in srgb, var(--accent) 9%, transparent), 0 0 0 48px color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+
+    .insight-feature time { color: var(--accent); font-size: 11px; }
+    .insight-feature h3 { max-width: 13ch; margin: 11px 0 12px; font-size: 25px; }
+    .insight-feature p { position: relative; z-index: 1; max-width: 30ch; margin: 0; font-size: 13px; line-height: 1.65; }
+
+    .evidence {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .insight-section {
+      margin-top: 30px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    .insight-section > p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.72;
+    }
+
+    .prediction {
+      margin-top: 14px;
+      padding: 18px;
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .prediction-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .prediction-status {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .prediction-window { color: var(--faint); font-size: 11px; }
+    .prediction p { margin: 0; font-size: 14px; line-height: 1.6; }
+
+    .revisit-button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 12px 0 0;
+      border: 0;
+      border-top: 1px solid var(--line);
+      background: transparent;
+      color: var(--accent);
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .insight-loading { display: none; margin-top: 26px; }
+    .insight-loading.show { display: grid; gap: 11px; }
+    .skeleton {
+      height: 16px;
+      border-radius: 7px;
+      background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2));
+      background-size: 200% 100%;
+      animation: shimmer 1.3s ease-in-out infinite;
+    }
+    .skeleton:nth-child(1) { width: 48%; height: 28px; }
+    .skeleton:nth-child(2) { width: 100%; }
+    .skeleton:nth-child(3) { width: 86%; }
+    .skeleton:nth-child(4) { width: 68%; }
+
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    .profile-hero {
+      display: grid;
+      grid-template-columns: 62px 1fr;
+      gap: 15px;
+      align-items: center;
+      margin: 10px 0 28px;
+    }
+
+    .profile-mark {
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .profile-hero strong { display: block; margin-bottom: 4px; font-size: 18px; }
+    .profile-hero span { color: var(--muted); font-size: 12px; }
+
+    .settings-group {
+      margin: 0 0 26px;
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: var(--surface-2);
+    }
+
+    .setting-row {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 16px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .setting-row:last-child { border-bottom: 0; }
+    button.setting-row { width: 100%; cursor: pointer; }
+    .setting-row small { color: var(--muted); font-size: 11px; }
+
+    .switch {
+      position: relative;
+      width: 46px;
+      height: 28px;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 99px;
+      background: var(--surface-3);
+      cursor: pointer;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #f8faf8;
+      box-shadow: 0 2px 7px rgba(23,32,29,.18);
+      transition: transform .25s var(--ease);
+    }
+
+    .switch.on { background: var(--accent-strong); }
+    .switch.on::after { transform: translateX(18px); }
+
+    .demo-state-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 10px;
+    }
+
+    .demo-state-row button {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .demo-state-row button.active { border-color: var(--accent); color: var(--accent); }
+
+    .error-banner {
+      display: none;
+      margin-bottom: 18px;
+      padding: 14px;
+      border: 1px solid color-mix(in srgb, var(--danger) 38%, var(--line));
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+      color: var(--danger);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .error-banner.show { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .error-banner button { border: 0; background: none; color: inherit; font-weight: 700; cursor: pointer; }
+
+    .bottom-nav {
+      position: absolute;
+      z-index: 5;
+      inset: auto 0 0;
+      min-height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      background: color-mix(in srgb, var(--surface) 86%, transparent);
+      border-top: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+      backdrop-filter: blur(22px) saturate(130%);
+      -webkit-backdrop-filter: blur(22px) saturate(130%);
+    }
+
+    .nav-button {
+      position: relative;
+      border: 0;
+      background: transparent;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .nav-button::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      width: 18px;
+      height: 2px;
+      transform: translateX(-50%) scaleX(0);
+      border-radius: 4px;
+      background: var(--accent);
+      transition: transform .24s var(--ease);
+    }
+
+    .nav-button.active { color: var(--accent); }
+    .nav-button.active::before { transform: translateX(-50%) scaleX(1); }
+
+    .record-overlay, .sheet-backdrop, .dialog-backdrop {
+      position: absolute;
+      z-index: 12;
+      inset: 0;
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .28s var(--ease), visibility .28s;
+    }
+
+    .record-overlay.open, .sheet-backdrop.open, .dialog-backdrop.open {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .record-overlay {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 70px 24px 36px;
+      background: var(--accent-strong);
+      color: #f3faf7;
+    }
+
+    .record-overlay-head { display: flex; align-items: center; justify-content: space-between; }
+    .record-overlay-head strong { font-size: 14px; }
+    .record-overlay-head button { border: 0; background: transparent; color: #d8ebe5; cursor: pointer; }
+
+    .record-center { display: grid; place-items: center; align-content: center; }
+    .record-time { margin: 0 0 38px; font-size: 58px; font-weight: 520; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+    .waveform { height: 90px; display: flex; align-items: center; gap: 5px; }
+    .waveform span { width: 4px; height: 24px; border-radius: 4px; background: #dcebe6; animation: wave 1s ease-in-out infinite alternate; }
+    .waveform span:nth-child(2n) { animation-delay: -.35s; }
+    .waveform span:nth-child(3n) { animation-delay: -.6s; }
+    .waveform span:nth-child(4n) { animation-delay: -.18s; }
+    @keyframes wave { from { transform: scaleY(.4); opacity: .55; } to { transform: scaleY(2.2); opacity: 1; } }
+
+    .stop-button {
+      width: 74px;
+      height: 74px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto;
+      border: 0;
+      border-radius: 50%;
+      background: #f4faf7;
+      cursor: pointer;
+    }
+
+    .stop-button::before { content: ""; width: 24px; height: 24px; border-radius: 7px; background: var(--accent-strong); }
+    .stop-button:active { transform: scale(.96); }
+
+    .sheet-backdrop, .dialog-backdrop {
+      display: flex;
+      align-items: end;
+      background: rgba(8, 15, 13, .44);
+    }
+
+    .sheet, .dialog {
+      width: 100%;
+      max-height: 88%;
+      overflow-y: auto;
+      padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+      border-radius: 24px 24px 0 0;
+      background: var(--surface);
+      transform: translateY(20px);
+      transition: transform .28s var(--ease);
+    }
+
+    .open .sheet, .open .dialog { transform: translateY(0); }
+
+    .sheet-handle {
+      width: 38px;
+      height: 4px;
+      margin: 0 auto 20px;
+      border-radius: 4px;
+      background: var(--line);
+    }
+
+    .sheet label { display: block; margin: 22px 0 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
+
+    textarea {
+      width: 100%;
+      min-height: 174px;
+      resize: vertical;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface-2);
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    textarea::placeholder { color: var(--faint); opacity: 1; }
+
+    .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 9px; margin-top: 14px; }
+    .secondary-button { min-height: 48px; border: 1px solid var(--line); border-radius: 14px; background: transparent; color: var(--muted); cursor: pointer; }
+
+    .dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+    .dialog-head button { flex: 0 0 auto; border: 0; background: none; color: var(--accent); font-weight: 700; cursor: pointer; }
+    .dialog-meta { margin: 8px 0 22px; color: var(--faint); font-size: 12px; }
+    .dialog-block { padding: 18px 0; border-top: 1px solid var(--line); }
+    .dialog-block strong { display: block; margin-bottom: 8px; font-size: 12px; }
+    .dialog-block p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.72; }
+    .dialog-block .original { color: var(--faint); }
+
+    .validation-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+    .validation-options button { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--muted); cursor: pointer; }
+    .validation-options button.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+
+    .toast {
+      position: absolute;
+      z-index: 30;
+      left: 50%;
+      bottom: calc(var(--nav-height) + 20px);
+      width: max-content;
+      max-width: calc(100% - 40px);
+      padding: 11px 15px;
+      border-radius: 12px;
+      background: var(--ink);
+      color: var(--surface);
+      font-size: 12px;
+      opacity: 0;
+      transform: translate(-50%, 12px);
+      pointer-events: none;
+      transition: opacity .24s var(--ease), transform .24s var(--ease);
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 900px) {
+      .prototype-stage { display: block; padding: 0; }
+      .stage-note { display: none; }
+      .device {
+        width: 100%;
+        height: 100dvh;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .device::before { display: none; }
+      .app-header { height: calc(61px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); }
+      .view { padding-top: calc(84px + env(safe-area-inset-top)); }
+      .record-overlay { padding-top: calc(30px + env(safe-area-inset-top)); }
+    }
+
+    @media (max-width: 360px) {
+      .view { padding-left: 16px; padding-right: 16px; }
+      h2 { font-size: 29px; }
+      .record-zone { min-height: 204px; }
+      .date-cell { height: 50px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .app-header, .bottom-nav { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="prototype-stage">
+    <aside class="stage-note" aria-label="原型说明">
+      <div class="stage-mark">Meridian</div>
+      <h1>让生活留下可以回看的迹。</h1>
+      <p>这是一个可交互的移动端原型。重点验证记录、理解、阶段解读和未来验证是否能形成自然闭环。</p>
+      <ul class="stage-index">
+        <li>点击麦克风，模拟一次语音记录</li>
+        <li>切换底部导航，查看四个核心入口</li>
+        <li>在解读中生成本周 Insight</li>
+        <li>打开待验证判断，提交现实反馈</li>
+      </ul>
+    </aside>
+
+    <section class="device" aria-label="Meridian 手机端交互原型">
+      <div class="app">
+        <header class="app-header">
+          <p class="brand">Meridian</p>
+          <time class="header-date" datetime="2026-09-06">9月6日 星期日</time>
+        </header>
+
+        <section class="view active" id="view-today" data-view="today">
+          <div class="error-banner" id="error-banner">
+            <span>上一段音频转写失败，原始录音已保存。</span>
+            <button type="button" id="retry-button">重试</button>
+          </div>
+          <p class="kicker">今天</p>
+          <h2>最近过得怎么样？</h2>
+          <p class="lead">不用组织语言。说下刚刚发生的事，剩下的交给 Meridian。</p>
+
+          <div class="record-zone">
+            <button class="text-entry-button" type="button" id="open-text">文字记录</button>
+            <button class="record-action" type="button" id="start-record" aria-label="开始语音记录">
+              <span class="mic-shape" aria-hidden="true"></span>
+            </button>
+            <span class="record-copy">轻触开始，说完即可离开</span>
+          </div>
+
+          <div class="section-row">
+            <span class="section-title">今天的日记</span>
+            <button class="subtle-button" type="button" data-nav-target="time">查看时间线</button>
+          </div>
+
+          <div class="entry-list" id="today-entries">
+            <button class="entry" type="button" data-entry="morning">
+              <time class="entry-time" datetime="2026-09-06T08:42:00+08:00">08:42</time>
+              <span>
+                <span class="entry-title">晨会之后，我开始重新考虑现在的方向</span>
+                <span class="entry-body">和陈屿聊完以后，我意识到自己并不是单纯累，而是对接下来继续做同一类项目有些不确定。</span>
+                <span class="entry-meta">
+                  <span class="tag accent">状态 职业不确定</span>
+                  <span class="tag">人物 陈屿</span>
+                </span>
+              </span>
+            </button>
+            <button class="entry" type="button" data-entry="evening">
+              <time class="entry-time" datetime="2026-09-06T21:17:00+08:00">21:17</time>
+              <span>
+                <span class="entry-title">晚上重新看了一会 C++</span>
+                <span class="entry-body">没有给自己定计划，只是把之前收藏的课程打开看了四十分钟。久违地觉得注意力比较集中。</span>
+                <span class="entry-meta">
+                  <span class="tag accent">行为 学习 C++</span>
+                  <span class="tag">情绪 专注</span>
+                </span>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section class="view" id="view-time" data-view="time">
+          <div class="view-header">
+            <p class="kicker">时间</p>
+            <h2>九月</h2>
+            <p class="lead">按真实发生的时间，回看记录与变化。</p>
+          </div>
+
+          <div class="month-strip" aria-label="日期选择">
+            <button class="date-cell has-data" type="button" data-date="31"><span>一</span><span>31</span></button>
+            <button class="date-cell has-data" type="button" data-date="1"><span>二</span><span>1</span></button>
+            <button class="date-cell" type="button" data-date="2"><span>三</span><span>2</span></button>
+            <button class="date-cell has-data" type="button" data-date="3"><span>四</span><span>3</span></button>
+            <button class="date-cell" type="button" data-date="4"><span>五</span><span>4</span></button>
+            <button class="date-cell has-data" type="button" data-date="5"><span>六</span><span>5</span></button>
+            <button class="date-cell has-data selected" type="button" data-date="6"><span>日</span><span>6</span></button>
+          </div>
+
+          <div id="timeline-content">
+            <div class="section-row"><span class="section-title">9月6日，共 2 条记录</span></div>
+            <div class="timeline">
+              <article class="timeline-item">
+                <div class="timeline-time">08:42</div>
+                <div class="timeline-title">与陈屿沟通项目方向</div>
+                <p class="timeline-copy">职业不确定再次出现，同时提到了想接触不同技术方向。</p>
+              </article>
+              <article class="timeline-item">
+                <div class="timeline-time">21:17</div>
+                <div class="timeline-title">重新开始学习 C++</div>
+                <p class="timeline-copy">这是近三周第一次再次提到 C++，行动仍处于探索阶段。</p>
+              </article>
+              <article class="timeline-item">
+                <div class="timeline-time">关联历史</div>
+                <div class="timeline-title">8月17日曾提出相似问题</div>
+                <p class="timeline-copy">当时更关注工作疲惫，今天的表达开始指向职业方向本身。</p>
+              </article>
+            </div>
+          </div>
+
+          <div class="empty-state" id="timeline-empty" hidden>
+            <div class="empty-ring" aria-hidden="true"></div>
+            <strong>这一天还没有记录</strong>
+            <p>生活仍然发生，只是没有被要求留下。你可以随时从今天开始。</p>
+          </div>
+        </section>
+
+        <section class="view" id="view-insight" data-view="insight">
+          <div class="view-header">
+            <p class="kicker">解读</p>
+            <h2>看看最近发生了什么</h2>
+            <p class="lead">现实轨迹是主体，命理提供当前阶段的时间背景。</p>
+          </div>
+
+          <div class="segmented" role="group" aria-label="选择解读范围">
+            <button class="segment" type="button">今天</button>
+            <button class="segment active" type="button">最近 7 天</button>
+            <button class="segment" type="button">本月</button>
+          </div>
+          <button class="primary-button" type="button" id="generate-insight">重新生成本周解读</button>
+
+          <div class="insight-loading" id="insight-loading" aria-live="polite">
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+          </div>
+
+          <div id="insight-content">
+            <article class="insight-feature">
+              <time datetime="2026-08-31/2026-09-06">8月31日 - 9月6日</time>
+              <h3>你对工作的疑问正在发生变化</h3>
+              <p>本周的表达不再只围绕疲惫，而是更多指向方向感。你开始用实际探索回应这种不确定。</p>
+              <div class="evidence">来自 5 条记录，其中 3 条涉及职业方向，2 条出现了新的学习行为。</div>
+            </article>
+
+            <section class="insight-section">
+              <h3>现实中的变化</h3>
+              <p>过去三周你四次提到对当前方向的犹豫。本周第一次出现了连续两天的 C++ 学习记录，说明问题正在从感受进入探索。</p>
+            </section>
+
+            <section class="insight-section">
+              <h3>当前时间背景</h3>
+              <p>本月命理上下文更强调对已有结构的重新评估。它可以解释为什么变化更容易被感知，但不能证明你应该离开当前工作。</p>
+            </section>
+
+            <section class="insight-section">
+              <h3>等待现实回应</h3>
+              <article class="prediction">
+                <div class="prediction-head">
+                  <span class="prediction-status">待验证判断</span>
+                  <span class="prediction-window">2026.03 - 2026.09</span>
+                </div>
+                <p>未来半年，事业中的合作关系和职责边界可能发生一次明显调整。</p>
+                <button class="revisit-button" type="button" id="open-revisit">现在回看这条判断</button>
+              </article>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-profile" data-view="profile">
+          <div class="view-header">
+            <p class="kicker">我的</p>
+            <h2>你的 Meridian</h2>
+          </div>
+
+          <div class="profile-hero">
+            <div class="profile-mark">然</div>
+            <div><strong>林然</strong><span>已共同记录 43 天</span></div>
+          </div>
+
+          <div class="section-row"><span class="section-title">命理基础</span></div>
+          <div class="settings-group">
+            <button class="setting-row" type="button"><span>出生资料</span><small>1997.11.08 杭州</small></button>
+            <button class="setting-row" type="button"><span>基础命理</span><small>已生成</small></button>
+            <button class="setting-row" type="button"><span>当前时间上下文</span><small>2026 年 9 月</small></button>
+          </div>
+
+          <div class="section-row"><span class="section-title">偏好与隐私</span></div>
+          <div class="settings-group">
+            <div class="setting-row"><span>深色模式</span><button class="switch" type="button" id="theme-switch" role="switch" aria-checked="false" aria-label="切换深色模式"></button></div>
+            <div class="setting-row"><span>周期 Review</span><button class="switch on" type="button" role="switch" aria-checked="true" aria-label="切换周期 Review"></button></div>
+            <button class="setting-row" type="button"><span>导出与删除数据</span><small>管理</small></button>
+          </div>
+
+          <div class="section-row"><span class="section-title">原型状态</span></div>
+          <div class="settings-group demo-state-row" id="demo-states">
+            <button class="active" type="button" data-state="normal">正常</button>
+            <button type="button" data-state="empty">空状态</button>
+            <button type="button" data-state="error">失败</button>
+          </div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="主导航">
+          <button class="nav-button active" type="button" data-target="today">今天</button>
+          <button class="nav-button" type="button" data-target="time">时间</button>
+          <button class="nav-button" type="button" data-target="insight">解读</button>
+          <button class="nav-button" type="button" data-target="profile">我的</button>
+        </nav>
+
+        <section class="record-overlay" id="record-overlay" aria-modal="true" role="dialog" aria-label="正在录音">
+          <div class="record-overlay-head"><strong>正在记录</strong><button type="button" id="cancel-record">取消</button></div>
+          <div class="record-center">
+            <div class="record-time" id="record-time">00:00</div>
+            <div class="waveform" aria-label="音频波形">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <button class="stop-button" type="button" id="stop-record" aria-label="结束录音"></button>
+        </section>
+
+        <div class="sheet-backdrop" id="text-sheet" role="presentation">
+          <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="text-sheet-title">
+            <div class="sheet-handle"></div>
+            <h3 id="text-sheet-title">写下现在发生的事</h3>
+            <label for="text-entry">生活记录</label>
+            <textarea id="text-entry" placeholder="不需要完整，也不用分类。"></textarea>
+            <div class="sheet-actions">
+              <button class="secondary-button" type="button" id="cancel-text">取消</button>
+              <button class="primary-button" type="button" id="save-text">保存记录</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="dialog-backdrop" id="entry-dialog" role="presentation">
+          <article class="dialog" role="dialog" aria-modal="true" aria-labelledby="entry-dialog-title">
+            <div class="sheet-handle"></div>
+            <div class="dialog-head">
+              <h3 id="entry-dialog-title">晨会之后，我开始重新考虑现在的方向</h3>
+              <button type="button" data-close-dialog>完成</button>
+            </div>
+            <div class="dialog-meta">9月6日 08:42，语音 01:26</div>
+            <div class="dialog-block">
+              <strong>整理后的日记</strong>
+              <p>和陈屿聊完项目之后，我意识到自己并不是单纯觉得累。我开始怀疑，是否还想继续做同一类方向。晚上又想到，也许可以重新看看 C++，先了解不同的可能性。</p>
+            </div>
+            <div class="dialog-block">
+              <strong>从这段记录中识别</strong>
+              <div class="entry-meta"><span class="tag accent">事件 与陈屿沟通</span><span class="tag">状态 职业不确定</span><span class="tag">目标 探索方向</span></div>
+            </div>
+            <div class="dialog-block">
+              <strong>原始转写</strong>
+              <p class="original">就是今天跟陈屿聊完那个项目以后，我突然觉得可能不是单纯累吧，我好像不太想一直做现在这种方向。然后晚上又想了一下，要不重新看看 C++。</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="dialog-backdrop" id="revisit-dialog" role="presentation">
+          <article class="dialog" role="dialog" aria-modal="true" aria-labelledby="revisit-title">
+            <div class="sheet-handle"></div>
+            <div class="dialog-head"><h3 id="revisit-title">半年前的判断，现在怎么看？</h3><button type="button" data-close-dialog>完成</button></div>
+            <div class="dialog-meta">判断形成于 2026年3月12日</div>
+            <div class="dialog-block"><strong>当时的判断</strong><p>未来半年，事业中的合作关系和职责边界可能发生一次明显调整。</p></div>
+            <div class="dialog-block"><strong>现实中发生了什么</strong><p>5月项目负责人更换。7月你开始承担技术方案评审。最近三周，你多次表达对现有方向的不确定。</p></div>
+            <div class="dialog-block">
+              <strong>你的判断</strong>
+              <p>Meridian 认为存在部分对应，但职业方向是否发生实质变化仍需你确认。</p>
+              <div class="validation-options" id="validation-options">
+                <button type="button">符合</button><button type="button">部分符合</button><button type="button">不符合</button><button type="button">尚无法判断</button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const app = document.querySelector('.app');
+    const navButtons = [...document.querySelectorAll('.nav-button')];
+    const views = [...document.querySelectorAll('.view')];
+    const recordOverlay = document.getElementById('record-overlay');
+    const textSheet = document.getElementById('text-sheet');
+    const entryDialog = document.getElementById('entry-dialog');
+    const revisitDialog = document.getElementById('revisit-dialog');
+    const toast = document.getElementById('toast');
+    let recordTimer = null;
+    let elapsed = 0;
+
+    function showView(name) {
+      views.forEach(view => view.classList.toggle('active', view.dataset.view === name));
+      navButtons.forEach(button => button.classList.toggle('active', button.dataset.target === name));
+      const activeView = document.querySelector(`.view[data-view="${name}"]`);
+      if (activeView) activeView.scrollTop = 0;
+    }
+
+    navButtons.forEach(button => button.addEventListener('click', () => showView(button.dataset.target)));
+    document.querySelectorAll('[data-nav-target]').forEach(button => button.addEventListener('click', () => showView(button.dataset.navTarget)));
+
+    function notify(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(notify.timer);
+      notify.timer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function openLayer(layer) { layer.classList.add('open'); }
+    function closeLayer(layer) { layer.classList.remove('open'); }
+
+    document.getElementById('start-record').addEventListener('click', () => {
+      elapsed = 0;
+      document.getElementById('record-time').textContent = '00:00';
+      openLayer(recordOverlay);
+      recordTimer = setInterval(() => {
+        elapsed += 1;
+        const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const seconds = String(elapsed % 60).padStart(2, '0');
+        document.getElementById('record-time').textContent = `${minutes}:${seconds}`;
+      }, 1000);
+    });
+
+    document.getElementById('cancel-record').addEventListener('click', () => {
+      clearInterval(recordTimer);
+      closeLayer(recordOverlay);
+    });
+
+    document.getElementById('stop-record').addEventListener('click', () => {
+      clearInterval(recordTimer);
+      closeLayer(recordOverlay);
+      addProcessingEntry('22:06', '正在整理刚才的记录');
+      notify('原始录音已保存，正在后台整理');
+      setTimeout(finishProcessingEntry, 1800);
+    });
+
+    function addProcessingEntry(time, title) {
+      const list = document.getElementById('today-entries');
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'entry processing-entry';
+      item.id = 'new-processing-entry';
+      item.innerHTML = `<time class="entry-time">${time}</time><span><span class="entry-title">${title}</span><span class="entry-body">内容整理中，请稍候</span></span>`;
+      list.prepend(item);
+    }
+
+    function finishProcessingEntry() {
+      const item = document.getElementById('new-processing-entry');
+      if (!item) return;
+      item.classList.remove('processing-entry');
+      item.innerHTML = '<time class="entry-time">22:06</time><span><span class="entry-title">我想先允许自己探索，而不是马上做决定</span><span class="entry-body">今晚更确定了一点，现在需要的不是立刻离开，而是用一段时间验证新的方向是否值得投入。</span><span class="entry-meta"><span class="tag accent">想法 允许探索</span><span class="tag">决定 暂不离职</span></span></span>';
+      item.addEventListener('click', () => openLayer(entryDialog));
+      notify('日记已整理，并识别出 2 条迹');
+    }
+
+    document.getElementById('open-text').addEventListener('click', () => openLayer(textSheet));
+    document.getElementById('cancel-text').addEventListener('click', () => closeLayer(textSheet));
+    document.getElementById('save-text').addEventListener('click', () => {
+      const field = document.getElementById('text-entry');
+      const value = field.value.trim();
+      if (!value) {
+        field.focus();
+        notify('先写下一点内容');
+        return;
+      }
+      closeLayer(textSheet);
+      const list = document.getElementById('today-entries');
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'entry';
+      item.innerHTML = `<time class="entry-time">现在</time><span><span class="entry-title">${escapeHtml(value.slice(0, 26))}</span><span class="entry-body">${escapeHtml(value)}</span><span class="entry-meta"><span class="tag">文字记录</span></span></span>`;
+      list.prepend(item);
+      field.value = '';
+      notify('文字记录已保存');
+    });
+
+    function escapeHtml(value) {
+      const holder = document.createElement('div');
+      holder.textContent = value;
+      return holder.innerHTML;
+    }
+
+    document.querySelectorAll('[data-entry]').forEach(button => button.addEventListener('click', () => openLayer(entryDialog)));
+    document.getElementById('open-revisit').addEventListener('click', () => openLayer(revisitDialog));
+    document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => closeLayer(button.closest('.dialog-backdrop'))));
+
+    [textSheet, entryDialog, revisitDialog].forEach(layer => {
+      layer.addEventListener('click', event => {
+        if (event.target === layer) closeLayer(layer);
+      });
+    });
+
+    document.querySelectorAll('.segment').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('.segment').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      document.getElementById('generate-insight').textContent = `生成${button.textContent}解读`;
+    }));
+
+    document.getElementById('generate-insight').addEventListener('click', event => {
+      const loading = document.getElementById('insight-loading');
+      const content = document.getElementById('insight-content');
+      event.currentTarget.disabled = true;
+      event.currentTarget.textContent = '正在连接命与迹';
+      content.hidden = true;
+      loading.classList.add('show');
+      setTimeout(() => {
+        loading.classList.remove('show');
+        content.hidden = false;
+        event.currentTarget.disabled = false;
+        event.currentTarget.textContent = '重新生成本周解读';
+        notify('阶段解读已更新');
+      }, 2100);
+    });
+
+    document.querySelectorAll('.date-cell').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('.date-cell').forEach(item => item.classList.remove('selected'));
+      button.classList.add('selected');
+      const empty = !button.classList.contains('has-data');
+      document.getElementById('timeline-content').hidden = empty;
+      document.getElementById('timeline-empty').hidden = !empty;
+    }));
+
+    document.querySelectorAll('.switch').forEach(toggle => toggle.addEventListener('click', () => {
+      const isOn = toggle.classList.toggle('on');
+      toggle.setAttribute('aria-checked', String(isOn));
+    }));
+
+    const themeSwitch = document.getElementById('theme-switch');
+    const savedTheme = localStorage.getItem('meridian-theme');
+    const initialDark = savedTheme ? savedTheme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    if (initialDark) {
+      document.documentElement.dataset.theme = 'dark';
+      themeSwitch.classList.add('on');
+      themeSwitch.setAttribute('aria-checked', 'true');
+    }
+
+    themeSwitch.addEventListener('click', () => {
+      const dark = themeSwitch.classList.contains('on');
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      localStorage.setItem('meridian-theme', dark ? 'dark' : 'light');
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#121816' : '#f3f5f2';
+    });
+
+    document.querySelectorAll('[role="switch"]:not(#theme-switch)').forEach(toggle => toggle.addEventListener('click', () => notify(toggle.classList.contains('on') ? '周期 Review 已开启' : '周期 Review 已关闭')));
+
+    document.querySelectorAll('#validation-options button').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('#validation-options button').forEach(item => item.classList.remove('selected'));
+      button.classList.add('selected');
+      notify(`已记录：${button.textContent}`);
+    }));
+
+    document.querySelectorAll('#demo-states button').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('#demo-states button').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      const state = button.dataset.state;
+      const error = document.getElementById('error-banner');
+      if (state === 'error') {
+        error.classList.add('show');
+        showView('today');
+      } else if (state === 'empty') {
+        showView('time');
+        document.querySelector('.date-cell[data-date="4"]').click();
+      } else {
+        error.classList.remove('show');
+        showView('today');
+      }
+    }));
+
+    document.getElementById('retry-button').addEventListener('click', () => {
+      document.getElementById('error-banner').classList.remove('show');
+      notify('已重新提交转写');
+    });
+
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
