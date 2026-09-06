@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meridian-demo-cache';
+const CACHE_NAME = 'meridian-demo-cache-v2';
 const APP_SHELL = [
   './meridian-demo.html',
   './manifest.webmanifest',
