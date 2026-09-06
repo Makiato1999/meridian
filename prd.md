@@ -38,6 +38,7 @@ MVP 不包含：
 - 独立的“命 / 迹 / 心”三栏产品结构；
 - 完整 Future Branch 管理；
 - 图片、视频、耳机、锁屏、小组件等扩展入口；
+- 日记文本和 Trace Item 的用户编辑；
 - 用户手动维护复杂标签和个人数据库；
 - 每日强制生成完整 AI 报告；
 - 多套命理体系自由切换；
@@ -92,7 +93,8 @@ MVP 不包含：
 
 #### 必须支持
 
-- 手机号、邮箱或第三方账号登录；
+- 仅支持微信授权登录；
+- 使用微信 `openid` 作为当前应用身份标识；具备开放平台条件时同时保存 `unionid`，但不将其作为唯一登录前提；
 - 设置时区；
 - 录入姓名或称呼、出生日期、出生时间、出生地点；
 - 明示命理分析所需信息、用途及隐私授权；
@@ -101,6 +103,8 @@ MVP 不包含：
 
 #### 验收标准
 
+- 用户可通过微信完成首次注册和后续登录；
+- 微信身份与 Meridian User 解耦保存，为未来增加其他登录方式保留空间；
 - 同一输入和同一 Skill 版本重复计算得到一致的基础结果；
 - 用户修改出生信息后生成新版本，旧 Insight 仍引用旧版本；
 - 未完成命理资料的用户仍可使用记录、Diary 和纯“迹”解读。
@@ -115,26 +119,34 @@ MVP 不包含：
 - 同一天可创建任意多个 Entry；
 - 录音结束后后台上传并转写，用户无需停留等待；
 - 展示处理状态：上传中、转写中、整理中、已完成、失败；
-- 失败任务可重试，不重复创建 Entry；
-- 保存录音资源、原始转写、整理文本、准确时间和来源类型。
+- 失败任务可基于已保存的原始音频重试，不重复创建 Entry；
+- 长期保存原始音频、原始转写、AI 重写文本、准确时间和来源类型。
 
 #### 体验指标
 
 - 已登录用户从打开产品到开始录音不超过 2 次操作；
 - 点击结束后立即返回可继续记录的界面；
-- 任何 AI 处理失败都不影响原始音频和 Entry 留存。
+- 任何 ASR 或 AI 处理失败都不影响原始音频和 Entry 留存。
 
 ### 6.3 转写与轻量整理
 
 处理顺序：
 
-1. ASR 输出原始转写文本；
-2. AI 修正常见识别噪声、重复和口头语；
-3. 保持事实、语气、人物和不确定性不变；
-4. 分别保存原始文本与整理文本；
-5. 用户可查看原文并修改整理文本。
+1. 保存原始音频；
+2. ASR 生成并保存 `raw_transcript`；
+3. AI 修正常见识别噪声、重复和口头语，生成 `ai_rewrite`；
+4. 系统继续提取 Trace Item。
 
-系统不得补充用户没有表达的事实。用户编辑整理文本时，不修改原始转写。
+两层文本必须独立保存：
+
+| 文本层 | 含义 | 是否可覆盖 |
+|---|---|---|
+| `raw_transcript` / `raw_text` | ASR 原始转写或用户直接输入的原文 | 不可覆盖 |
+| `ai_rewrite` | AI 轻量整理后的版本 | 重新生成时创建新版本 |
+
+Diary 默认展示顺序为：`ai_rewrite` > `raw_transcript` / `raw_text`。AI 重写失败时直接展示原始文本，不阻塞 Diary。
+
+AI 重写不得补充用户没有表达的事实，不得改变人物、时间、因果关系和不确定性。MVP 中用户只能查看原始文本和 AI 重写文本，不能编辑两者。
 
 ### 6.4 “迹”提取
 
@@ -174,7 +186,7 @@ Diary 是按用户时区聚合 Entry 的动态视图。
 
 - 日期与日历入口；
 - 当天整理后的日记，按 Entry 时间排序；
-- 可切换查看原始转写和播放原音频；
+- 可切换查看原始转写；MVP 不提供原音频回放；
 - 展示少量高置信度人物、事件、情绪、状态和目标；
 - 展示当天已有 Insight；
 - 支持继续添加语音或文字 Entry。
@@ -399,10 +411,11 @@ flowchart TB
 | 实体 | 关键字段 | 说明 |
 |---|---|---|
 | User | id, timezone, locale, created_at | 用户与时间聚合基准 |
+| UserIdentity | user_id, provider, provider_user_id, union_id, created_at | 登录身份；MVP 的 provider 仅为 wechat |
 | BirthProfile | user_id, birth_date, birth_time, place, precision, version | 出生资料，支持未知时间与版本 |
 | Entry | id, user_id, source_type, occurred_at, timezone, status | 每次原始输入 |
-| MediaAsset | id, entry_id, storage_key, mime_type, duration, checksum | 音频资源 |
-| EntryText | entry_id, kind, content, version, model_version | original_transcript / rewritten / user_edited |
+| MediaAsset | id, entry_id, storage_key, mime_type, duration, checksum | 原始音频资源 |
+| EntryText | entry_id, kind, content, version, model_version, created_at | raw_transcript / raw_text / ai_rewrite |
 | Diary | id, user_id, local_date | 日聚合身份，可按 Entry 动态构建 |
 | DiaryEntry | diary_id, entry_id, sort_order | 保留一日多条 Entry |
 | TraceItem | id, user_id, type, label, summary, start_at, end_at, confidence, version | 结构化的迹 |
@@ -424,6 +437,7 @@ flowchart TB
 
 ```mermaid
 erDiagram
+    USER ||--o{ USER_IDENTITY : authenticates_with
     USER ||--o{ ENTRY : creates
     ENTRY ||--o{ ENTRY_TEXT : has_versions
     ENTRY ||--o{ MEDIA_ASSET : contains
@@ -447,7 +461,10 @@ erDiagram
 
 - Entry 的 `occurred_at` 使用 UTC 保存，同时保留创建时区；
 - Diary 的自然日以用户当时的时区计算；
-- 原始音频和原始转写默认不可编辑，只允许删除；
+- 原始音频不可编辑，只允许随 Entry 一起删除；
+- `raw_transcript` 和 `raw_text` 不可编辑，只允许随 Entry 一起删除；
+- `ai_rewrite` 独立版本化，不覆盖原始文本；
+- Diary 展示文本按 `ai_rewrite`、原始文本的顺序解析；
 - AI 产物必须保存生成版本及来源引用；
 - Prediction 原文一经进入验证流程不可覆盖，只能追加修订版本；
 - 用户删除原始数据后，相关派生数据应删除或失效，并停止参与检索；
@@ -482,7 +499,7 @@ AI 输出需标注：
 - 音频、文本、出生信息和推断结果按高敏感数据隔离访问；
 - 明确说明数据是否用于模型训练，默认不用于公共模型训练；
 - 用户可单条删除 Entry、删除音频、清空命理资料或注销账号；
-- 用户可导出原始记录、整理文本、Insight 和 Prediction；
+- 用户可导出原始转写、AI 重写、Insight 和 Prediction；
 - 删除操作需覆盖派生数据、检索索引与对象存储；
 - 日志不得记录完整日记正文、出生资料或音频地址；
 - 命理内容必须保留非确定性表达及风险提示。
@@ -544,9 +561,9 @@ AI 输出需标注：
 
 ### P0：闭环成立
 
-- 登录、时区与出生资料；
+- 微信登录、时区与出生资料；
 - 移动端语音/文字 Entry；
-- 音频上传、ASR、原文与整理文本；
+- 音频上传与保存、ASR、原始转写与 AI 重写；
 - Trace Item 提取及证据关系；
 - 日历、日 Diary；
 - 版本化 Destiny Profile 与 Destiny Context；
@@ -578,16 +595,17 @@ AI 输出需标注：
 
 MVP 可发布需同时满足：
 
-1. 用户能在移动端完成“打开—说话—结束”，且原始数据可靠保存；
+1. 用户能通过微信登录，并在移动端完成“打开—说话—结束”；
 2. 一天多条 Entry 能正确聚合为 Diary，不丢失各自时间与来源；
-3. 原始转写、整理文本和用户编辑文本相互独立；
-4. Trace Item 能追溯至具体 Entry 和证据文本；
-5. 主动、周、月三类 Insight 使用同一 Pipeline；
-6. Insight 能区分事实、推断和命理解释；
-7. Destiny Profile 稳定且版本可追溯；
-8. Prediction 能独立保存、到期触发 Revisit 并接受用户验证；
-9. 用户可关闭通知、删除和导出个人数据；
-10. 任一 AI 服务失败都不会导致原始 Entry 丢失或重复。
+3. 原始音频和原始转写可靠保存，ASR 失败后可重试；
+4. 原始转写与 AI 重写相互独立，用户不可编辑，展示优先级正确；
+5. Trace Item 能追溯至具体 Entry 和原始证据文本；
+6. 主动、周、月三类 Insight 使用同一 Pipeline；
+7. Insight 能区分事实、推断和命理解释；
+8. Destiny Profile 稳定且版本可追溯；
+9. Prediction 能独立保存、到期触发 Revisit 并接受用户验证；
+10. 用户可关闭通知、删除和导出个人数据；
+11. ASR、AI 重写或结构化失败不会导致原始音频或已保存文本丢失或重复。
 
 ## 17. 待确认决策
 
@@ -598,8 +616,7 @@ MVP 可发布需同时满足：
 3. 原始音频默认永久保存还是允许设置自动删除周期；
 4. 主动 Insight 的额度、成本控制与重复生成策略；
 5. 周/月 Review 的默认生成日和推送时间；
-6. 用户编辑 Trace Item 的 MVP 深度；
-7. Prediction 何时进入“验证中”与“待确认”的具体调度规则。
+6. Prediction 何时进入“验证中”与“待确认”的具体调度规则。
 
 ## 18. 一句话验收产品差异
 
